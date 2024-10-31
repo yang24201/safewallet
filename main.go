@@ -102,7 +102,13 @@ func printWalletInfo(mnemonic string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("BTC Legacy私钥: %x\n", btcPrivateKey.Serialize())
+
+	// 转换为WIF格式
+	wifLegacy, err := btcutil.NewWIF(btcPrivateKey, &chaincfg.MainNetParams, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("BTC Legacy私钥(WIF): %s\n", wifLegacy.String())
 
 	btcAddress, err := generateBTCAddress(btcPrivateKey)
 	if err != nil {
@@ -115,6 +121,14 @@ func printWalletInfo(mnemonic string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// 转换为WIF格式
+	wifSegWit, err := btcutil.NewWIF(btcBip84PrivKey, &chaincfg.MainNetParams, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("BTC SegWit私钥(WIF): %s\n", wifSegWit.String())
+
 	bip84Address, err := generateBTCBip84Address(btcBip84PrivKey)
 	if err != nil {
 		log.Fatal(err)
@@ -126,6 +140,14 @@ func printWalletInfo(mnemonic string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// 转换为WIF格式
+	wifTaproot, err := btcutil.NewWIF(btcBip86PrivKey, &chaincfg.MainNetParams, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("BTC Taproot私钥(WIF): %s\n", wifTaproot.String())
+
 	taprootAddress, err := generateBTCTaprootAddress(btcBip86PrivKey)
 	if err != nil {
 		log.Fatal(err)
