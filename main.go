@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
@@ -12,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
+	"github.com/spf13/cobra"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -24,37 +26,91 @@ const (
 	SOLPath      = "m/44'/501'/0'/0/0" // BIP44 Solana路径
 )
 
+var rootCmd = &cobra.Command{
+	Use:   "safewallet",
+	Short: "一个多链钱包工具",
+	Long:  `一个支持BTC、ETH、SOL的钱包工具，可以生成或导入助记词，并显示对应的私钥和地址。`,
+}
+
+var newCmd = &cobra.Command{
+	Use:   "new",
+	Short: "生成新的助记词",
+	Run: func(cmd *cobra.Command, args []string) {
+		// 生成新的助记词
+		entropy, err := bip39.NewEntropy(128)
+		if err != nil {
+			log.Fatal(err)
+		}
+		mnemonic, err := bip39.NewMnemonic(entropy)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// 打印钱包信息
+		printWalletInfo(mnemonic)
+	},
+}
+
+var importCmd = &cobra.Command{
+	Use:   "import",
+	Short: "导入已有的助记词",
+	Run: func(cmd *cobra.Command, args []string) {
+		mnemonic, _ := cmd.Flags().GetString("mnemonic")
+		if mnemonic == "" {
+			fmt.Println("请提供助记词")
+			os.Exit(1)
+		}
+
+		// 验证助记词
+		if !bip39.IsMnemonicValid(mnemonic) {
+			fmt.Println("无效的助记词")
+			os.Exit(1)
+		}
+
+		// 打印钱包信息
+		printWalletInfo(mnemonic)
+	},
+}
+
+func init() {
+	// 添加子命令
+	rootCmd.AddCommand(newCmd)
+	rootCmd.AddCommand(importCmd)
+
+	// 添加 import 命令的 flags
+	importCmd.Flags().StringP("mnemonic", "m", "", "指定的助记词")
+	importCmd.MarkFlagRequired("mnemonic")
+}
+
 func main() {
-	// 1. 生成助记词
-	entropy, err := bip39.NewEntropy(128)
-	if err != nil {
-		log.Fatal(err)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		log.Fatal(err)
-	}
+}
+
+// 打印钱包信息的函数
+func printWalletInfo(mnemonic string) {
 	fmt.Println("助记词:", mnemonic)
 
-	// 2. 将助记词转换为种子
+	// 将助记词转换为种子
 	seed := bip39.NewSeed(mnemonic, "")
 	fmt.Printf("种子: %x\n", seed)
 
-	// 3. 生成 BTC 私钥和地址
+	// 生成 BTC Legacy私钥和地址
 	btcPrivateKey, err := generateBTCPrivateKey(seed)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("BTC 私钥: %x\n", btcPrivateKey.Serialize())
+	fmt.Printf("BTC Legacy私钥: %x\n", btcPrivateKey.Serialize())
 
-	// 生成BTC Legacy地址 (1开头)
 	btcAddress, err := generateBTCAddress(btcPrivateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("BTC Legacy地址: %s\n", btcAddress)
 
-	// 生成BTC Native SegWit地址 (bc1开头)
+	// 生成BTC Native SegWit私钥和地址
 	btcBip84PrivKey, err := generateBTCBip84PrivateKey(seed)
 	if err != nil {
 		log.Fatal(err)
@@ -65,7 +121,7 @@ func main() {
 	}
 	fmt.Printf("BTC Native SegWit地址: %s\n", bip84Address)
 
-	// 生成BTC Taproot地址 (bc1p开头)
+	// 生成BTC Taproot私钥和地址
 	btcBip86PrivKey, err := generateBTCBip86PrivateKey(seed)
 	if err != nil {
 		log.Fatal(err)
@@ -76,25 +132,23 @@ func main() {
 	}
 	fmt.Printf("BTC Taproot地址: %s\n", taprootAddress)
 
-	// 4. 生成 ETH 私钥和地址
+	// 生成 ETH 私钥和地址
 	ethPrivateKey, err := generateETHPrivateKey(seed)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("ETH 私钥: %x\n", ethPrivateKey.D.Bytes())
 
-	// 生成ETH地址
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
 	fmt.Printf("ETH 地址: %s\n", ethAddress.Hex())
 
-	// 5. 生成 SOL 私钥和地址
+	// 生成 SOL 私钥和地址
 	solPrivateKey, err := generateSOLPrivateKey(seed)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("SOL 私钥: %s\n", hexutil.Encode(solPrivateKey.D.Bytes()))
 
-	// 生成SOL地址
 	solAddress := generateSOLAddress(solPrivateKey)
 	fmt.Printf("SOL 地址: %s\n", solAddress)
 }
