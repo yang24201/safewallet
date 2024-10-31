@@ -7,9 +7,11 @@ import (
 	"os"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
@@ -320,13 +322,14 @@ func generateBTCBip84Address(privateKey *btcec.PrivateKey) (string, error) {
 	return addr.EncodeAddress(), nil
 }
 
-// 生成BIP86比特币私钥
+// 修改生成BIP86私钥的函数
 func generateBTCBip86PrivateKey(seed []byte) (*btcec.PrivateKey, error) {
 	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
 	if err != nil {
 		return nil, err
 	}
 
+	// BIP86派生路径: m/86'/0'/0'/0/0
 	path := []uint32{
 		86 + hdkeychain.HardenedKeyStart, // purpose
 		0 + hdkeychain.HardenedKeyStart,  // coin type
@@ -342,19 +345,20 @@ func generateBTCBip86PrivateKey(seed []byte) (*btcec.PrivateKey, error) {
 			return nil, err
 		}
 	}
+
 	return key.ECPrivKey()
 }
 
-// 生成BIP86比特币地址
+// 修改生成BIP86比特币地址的函数
 func generateBTCTaprootAddress(privateKey *btcec.PrivateKey) (string, error) {
-	publicKey := privateKey.PubKey()
+	// 获取内部公钥
+	internalKey := privateKey.PubKey()
 
-	// 将公钥转换为x-only格式（只使用x坐标）
-	pubKeyBytes := publicKey.SerializeCompressed()
-	xOnlyPubKey := pubKeyBytes[1:] // 移除前缀字节
+	// 创建Taproot输出密钥 (使用 ComputeTaprootKeyNoScript 替代)
+	tapKey := txscript.ComputeTaprootKeyNoScript(internalKey)
 
-	// 创建Taproot地址（bc1p开头）
-	addr, err := btcutil.NewAddressTaproot(xOnlyPubKey, &chaincfg.MainNetParams)
+	// 创建Taproot地址
+	addr, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(tapKey), &chaincfg.MainNetParams)
 	if err != nil {
 		return "", err
 	}
