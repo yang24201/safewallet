@@ -12,20 +12,17 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 	"github.com/tyler-smith/go-bip39"
 )
 
 // 派生路径常量
 const (
-	BTCPath      = "m/44'/0'/0'/0/0"   // BIP44 比特币路径
-	BTCBip84Path = "m/84'/0'/0'/0/0"   // BIP84 比特币原生隔离见证路径
-	BTCBip86Path = "m/86'/0'/0'/0/0"   // BIP86 比特币Taproot路径
-	ETHPath      = "m/44'/60'/0'/0/0"  // BIP44 以太坊路径
-	SOLPath      = "m/44'/501'/0'/0/0" // BIP44 Solana路径
+	BTCPath      = "m/44'/0'/0'/0/0"  // BIP44 比特币路径
+	BTCBip84Path = "m/84'/0'/0'/0/0"  // BIP84 比特币原生隔离见证路径
+	BTCBip86Path = "m/86'/0'/0'/0/0"  // BIP86 比特币Taproot路径
+	ETHPath      = "m/44'/60'/0'/0/0" // BIP44 以太坊路径
 )
 
 var rootCmd = &cobra.Command{
@@ -165,16 +162,6 @@ func printWalletInfo(mnemonic string) {
 
 	ethAddress := crypto.PubkeyToAddress(ethPrivateKey.PublicKey)
 	fmt.Printf("ETH 地址: %s\n", ethAddress.Hex())
-
-	// 生成 SOL 私钥和地址
-	solPrivateKey, err := generateSOLPrivateKey(seed)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("SOL 私钥: %s\n", hexutil.Encode(solPrivateKey.D.Bytes()))
-
-	solAddress := generateSOLAddress(solPrivateKey)
-	fmt.Printf("SOL 地址: %s\n", solAddress)
 }
 
 // 生成比特币地址
@@ -186,43 +173,6 @@ func generateBTCAddress(privateKey *btcec.PrivateKey) (string, error) {
 		return "", err
 	}
 	return addr.EncodeAddress(), nil
-}
-
-// 生成Solana私钥
-func generateSOLPrivateKey(seed []byte) (*ecdsa.PrivateKey, error) {
-	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
-	if err != nil {
-		return nil, err
-	}
-
-	path := []uint32{
-		44 + hdkeychain.HardenedKeyStart,  // purpose
-		501 + hdkeychain.HardenedKeyStart, // coin type (501 for SOL)
-		0 + hdkeychain.HardenedKeyStart,   // account
-		0,                                 // change
-		0,                                 // address index
-	}
-
-	key := masterKey
-	for _, n := range path {
-		key, err = key.Derive(n)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	btcPrivKey, err := key.ECPrivKey()
-	if err != nil {
-		return nil, err
-	}
-	return crypto.ToECDSA(btcPrivKey.Serialize())
-}
-
-// 生成Solana地址
-func generateSOLAddress(privateKey *ecdsa.PrivateKey) string {
-	publicKey := privateKey.Public().(*ecdsa.PublicKey)
-	publicKeyBytes := crypto.CompressPubkey(publicKey)
-	return base58.Encode(publicKeyBytes)
 }
 
 // 生成比特币私钥
