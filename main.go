@@ -35,8 +35,23 @@ var newCmd = &cobra.Command{
 	Use:   "new",
 	Short: "生成新的助记词",
 	Run: func(cmd *cobra.Command, args []string) {
+		// 获取助记词长度参数
+		wordCount, _ := cmd.Flags().GetInt("words")
+
+		// 根据单词数量确定熵的大小
+		var entropySize int
+		switch wordCount {
+		case 12:
+			entropySize = 128
+		case 24:
+			entropySize = 256
+		default:
+			log.Printf("助记词长度只能是12或24个单词，如果指定的助记词长度不是这两个数，默认生成12位长度的助记词")
+			entropySize = 128
+		}
+
 		// 生成新的助记词
-		entropy, err := bip39.NewEntropy(128)
+		entropy, err := bip39.NewEntropy(entropySize)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -79,6 +94,9 @@ func init() {
 	// 添加 import 命令的 flags
 	importCmd.Flags().StringP("mnemonic", "m", "", "指定的助记词")
 	importCmd.MarkFlagRequired("mnemonic")
+
+	// 修改 newCmd 的 flags
+	newCmd.Flags().IntP("words", "w", 12, "助记词的长度，12或24")
 }
 
 func main() {
